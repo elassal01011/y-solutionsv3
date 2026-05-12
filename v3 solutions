@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Y SOLUTIONS | Employee Sales Portal</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root { --y-gold: #c5a059; --y-dark: #1a1a1a; --y-sidebar: #111; }
+        body { background-color: #f4f7f6; font-family: 'Segoe UI', system-ui; }
+        
+        /* Sidebar Navigation */
+        .sidebar { background: var(--y-sidebar); color: white; min-height: 100vh; position: fixed; width: 280px; padding: 20px; z-index: 1000; }
+        .main-content { margin-left: 280px; padding: 30px; }
+        .brand-logo { font-weight: 800; color: var(--y-gold); letter-spacing: 2px; border-bottom: 1px solid #333; padding-bottom: 15px; margin-bottom: 25px; }
+        
+        /* Dashboard Elements */
+        .card-stat { border: none; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); transition: 0.3s; }
+        .card-stat:hover { transform: translateY(-5px); }
+        .status-badge { font-size: 0.7rem; padding: 4px 10px; border-radius: 20px; text-transform: uppercase; font-weight: bold; }
+        
+        /* Form & Admin Control */
+        .admin-lock { display: none; }
+        .item-row { border-bottom: 1px solid #eee; padding: 10px 0; }
+        .item-disabled { opacity: 0.4; filter: grayscale(1); }
+
+        @media (max-width: 992px) { .sidebar { width: 100%; position: relative; min-height: auto; } .main-content { margin-left: 0; } }
+        @media print { .no-print { display: none !important; } .main-content { margin-left: 0; padding: 0; } }
+        
+        #gateOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 9999; display: none; justify-content: center; align-items: center; backdrop-filter: blur(5px); }
+    </style>
+</head>
+<body>
+
+<div id="gateOverlay">
+    <div class="text-center text-white">
+        <h3 class="mb-4 text-warning"><i class="fas fa-user-shield"></i> ADMIN AUTHENTICATION</h3>
+        <input type="password" id="pinIn" class="form-control form-control-lg mb-3 text-center bg-dark text-white border-warning" placeholder="ENTER 1122">
+        <div class="d-flex gap-2">
+            <button class="btn btn-outline-light w-100" onclick="closeAdmin()">BACK</button>
+            <button class="btn btn-warning w-100" onclick="verifyPin()">UNLOCK</button>
+        </div>
+    </div>
+</div>
+
+<div class="sidebar no-print">
+    <div class="brand-logo text-center">
+        <div class="h4">Y SOLUTIONS</div>
+        <div class="small text-muted">EMPLOYEE PORTAL</div>
+    </div>
+
+    <nav class="nav nav-pills flex-column mb-auto">
+        <a class="nav-link active mb-2" href="#" onclick="showTab('new')"><i class="fas fa-file-invoice-dollar me-2"></i> New Quotation</a>
+        <a class="nav-link mb-2 text-white" href="#" onclick="showTab('history')"><i class="fas fa-folder-open me-2"></i> Project History</a>
+        <a class="nav-link mb-2 text-warning" href="#" onclick="openAdmin()"><i class="fas fa-cogs me-2"></i> Admin Control</a>
+    </nav>
+
+    <div class="mt-5 p-3 bg-dark rounded small text-muted">
+        Eng. Youssef Elassal<br>
+        Version: 4.2 Pro
+    </div>
+</div>
+
+<div class="main-content">
+    <div id="tab-new">
+        <div class="row">
+            <div class="col-lg-5 no-print">
+                <div class="card card-stat p-4 mb-4">
+                    <h5 class="mb-4 fw-bold"><i class="fas fa-edit me-2"></i> Project Setup</h5>
+                    
+                    <div class="mb-3">
+                        <label class="small fw-bold">CLIENT & LOCATION</label>
+                        <input type="text" id="cName" class="form-control mb-2" placeholder="Client Full Name" oninput="update()">
+                        <select id="cLoc" class="form-select mb-2" onchange="update()"></select>
+                        <input type="text" id="cEmp" class="form-control" placeholder="Employee ID (e.g. EMP-01)" oninput="update()">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="small fw-bold">ROOM COUNTS</label>
+                        <div id="roomControls" class="row g-2"></div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="small fw-bold">SMART CURTAIN UNITS</label>
+                        <input type="number" id="curtQty" class="form-control" value="0" min="0" oninput="update()">
+                    </div>
+
+                    <button class="btn btn-warning w-100 fw-bold py-2 mt-2" onclick="saveProject()">
+                        <i class="fas fa-check-circle me-2"></i> FINALIZE & ARCHIVE
+                    </button>
+                </div>
+            </div>
+
+            <div class="col-lg-7">
+                <div class="row mb-4 no-print">
+                    <div class="col-md-6">
+                        <div class="card card-stat p-3 bg-dark text-white">
+                            <small class="text-muted text-uppercase">Sales Total</small>
+                            <h3 id="dashTotal" class="mb-0">0 EGP</h3>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card card-stat p-3 bg-white border">
+                            <small class="text-muted text-uppercase">Est. Margin (Profit)</small>
+                            <h3 id="dashProfit" class="mb-0 text-success">0 EGP</h3>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card card-stat p-5 bg-white" id="invoice">
+                    <div class="d-flex justify-content-between border-bottom pb-4 mb-4">
+                        <div>
+                            <h2 class="fw-bold mb-0">PROPOSAL</h2>
+                            <small class="text-muted">ID: <span id="vID"></span> | <span id="vDate"></span></small>
+                        </div>
+                        <div class="text-end">
+                            <h4 class="text-warning fw-bold mb-0">Y SOLUTIONS</h4>
+                            <small class="text-muted">By Eng. Youssef Elassal</small>
+                        </div>
+                    </div>
+
+                    <div class="row mb-4 small">
+                        <div class="col-6">
+                            <label class="text-muted text-uppercase d-block">Client Information</label>
+                            <strong id="vClient">---</strong><br>
+                            <span id="vLoc">---</span>
+                        </div>
+                        <div class="col-6 text-end">
+                            <label class="text-muted text-uppercase d-block">Generated By</label>
+                            <strong id="vEmp">---</strong>
+                        </div>
+                    </div>
+
+                    <table class="table table-sm align-middle">
+                        <thead class="table-light">
+                            <tr><th>Component</th><th class="text-center">Qty</th><th class="text-end">Price</th></tr>
+                        </thead>
+                        <tbody id="vTable"></tbody>
+                    </table>
+
+                    <div class="row mt-4">
+                        <div class="col-7 small text-muted">
+                            <h6 class="text-dark">Commercial Terms</h6>
+                            <div id="vTerms" style="white-space: pre-line;"></div>
+                        </div>
+                        <div class="col-5">
+                            <table class="table table-sm table-borderless">
+                                <tr><td class="small">Equipment</td><td class="text-end fw-bold" id="sSub">0</td></tr>
+                                <tr><td class="small">Install & Travel</td><td class="text-end fw-bold" id="sInstall">0</td></tr>
+                                <tr class="border-top table-dark"><td class="p-2">GRAND TOTAL</td><td class="text-end p-2 h5 mb-0" id="sGrand">0</td></tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <div class="text-center mt-4 no-print">
+                    <button class="btn btn-dark px-5 py-2" onclick="window.print()">
+                        <i class="fas fa-print me-2"></i> PRINT FOR CLIENT
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="tab-history" style="display:none">
+        <div class="card card-stat p-4">
+            <div class="d-flex justify-content-between mb-4">
+                <h4>Project Archive</h4>
+                <button class="btn btn-outline-success btn-sm" onclick="exportCSV()"><i class="fas fa-file-excel"></i> Export All</button>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead><tr><th>ID</th><th>Client</th><th>Employee</th><th>Date</th><th>Total</th><th>Status</th><th>Actions</th></tr></thead>
+                    <tbody id="histBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div id="tab-admin" style="display:none">
+        <div class="card card-stat p-4 border-top border-warning border-4">
+            <h4>Global System Parameters</h4>
+            
+            <div class="row mt-4">
+                <div class="col-md-6 border-end">
+                    <h6 class="fw-bold mb-3">Item Master Activation</h6>
+                    <div id="adminItems"></div>
+                </div>
+                <div class="col-md-6">
+                    <h6 class="fw-bold mb-3">Region Install Fees (EGP)</h6>
+                    <div id="adminLocs"></div>
+                    <button class="btn btn-sm btn-link text-primary" onclick="addLocation()">+ Add Area</button>
+                    
+                    <h6 class="fw-bold mt-4 mb-3">Global Terms & Conditions</h6>
+                    <textarea id="adminTerms" class="form-control" rows="5"></textarea>
+                </div>
+            </div>
+            <button class="btn btn-danger w-100 mt-4 py-3 fw-bold" onclick="saveAdmin()">UPDATE SYSTEM FOR ALL EMPLOYEES</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // System Intelligence
+    const MASTER = {
+        prices: {"Zigbee Smart Switch": 1050, "PIR Motion Sensor": 1000, "NS Panel Pro 120": 7840, "Smart Curtain System": 8500, "Mini Smart Relay": 850, "Smart Leak Sensor": 1200, "Smart Door Lock": 12500, "Tuya Gateway Pro": 3900},
+        costs: {"Zigbee Smart Switch": 700, "PIR Motion Sensor": 650, "NS Panel Pro 120": 5500, "Smart Curtain System": 6000, "Mini Smart Relay": 500, "Smart Leak Sensor": 800, "Smart Door Lock": 9000, "Tuya Gateway Pro": 2800},
+        logic: {"Bedroom": {"Zigbee Smart Switch": 2, "PIR Motion Sensor": 1}, "Living Room": {"NS Panel Pro 120": 1, "Zigbee Smart Switch": 4}, "Kitchen": {"Mini Smart Relay": 2, "Smart Leak Sensor": 1}, "Bathroom": {"PIR Motion Sensor": 1}, "Entrance": {"Smart Door Lock": 1, "Tuya Gateway Pro": 1}},
+        locations: {"Cairo": 1500, "Zayed": 2000, "Alexandria": 3000, "North Coast": 4500},
+        terms: "1. Quotation valid for 10 days.\n2. 60% Down payment required.\n3. 24-Month Hardware Warranty."
+    };
+
+    let pPrices = JSON.parse(localStorage.getItem('sys_prices')) || MASTER.prices;
+    let pActive = JSON.parse(localStorage.getItem('sys_active')) || Object.keys(MASTER.prices);
+    let pLocs = JSON.parse(localStorage.getItem('sys_locs')) || MASTER.locations;
+    let pTerms = localStorage.getItem('sys_terms') || MASTER.terms;
+    let pHist = JSON.parse(localStorage.getItem('sys_hist')) || [];
+
+    function init() {
+        const rc = document.getElementById('roomControls');
+        Object.keys(MASTER.logic).forEach(r => {
+            rc.innerHTML += `<div class="col-6 mb-2"><label class="small text-muted d-block">${r}</label><input type="number" class="form-control form-control-sm room-in" data-room="${r}" value="0" oninput="update()"></div>`;
+        });
+        document.getElementById('vDate').innerText = new Date().toLocaleDateString();
+        document.getElementById('vID').innerText = 5000 + pHist.length;
+        refreshLocs();
+        update();
+    }
+
+    function refreshLocs() {
+        const sel = document.getElementById('cLoc');
+        sel.innerHTML = '';
+        Object.keys(pLocs).forEach(l => sel.innerHTML += `<option value="${l}">${l}</option>`);
+    }
+
+    function update() {
+        const name = document.getElementById('cName').value || '---';
+        const loc = document.getElementById('cLoc').value;
+        const emp = document.getElementById('cEmp').value || '---';
+        const curtains = parseInt(document.getElementById('curtQty').value) || 0;
+
+        let counts = {};
+        let totalCost = 0;
+        let roomCount = 0;
+        let devCount = 0;
+
+        document.querySelectorAll('.room-in').forEach(inp => {
+            const q = parseInt(inp.value) || 0;
+            if(q > 0) {
+                roomCount += q;
+                const cfg = MASTER.logic[inp.dataset.room];
+                Object.keys(cfg).forEach(item => {
+                    if(pActive.includes(item)) {
+                        counts[item] = (counts[item] || 0) + (cfg[item] * q);
+                        devCount += (cfg[item] * q);
+                    }
+                });
+            }
+        });
+
+        if(curtains > 0 && pActive.includes("Smart Curtain System")) {
+            counts["Smart Curtain System"] = (counts["Smart Curtain System"] || 0) + curtains;
+            devCount += curtains;
+        }
+
+        const tbody = document.getElementById('vTable');
+        tbody.innerHTML = '';
+        let subtotal = 0;
+
+        Object.keys(counts).forEach(item => {
+            const price = pPrices[item];
+            const line = counts[item] * price;
+            subtotal += line;
+            totalCost += (counts[item] * MASTER.costs[item]);
+            tbody.innerHTML += `<tr><td>${item}</td><td class="text-center">${counts[item]}</td><td class="text-end">${line.toLocaleString()}</td></tr>`;
+        });
+
+        const install = pLocs[loc] || 0;
+        const grand = subtotal + install;
+        const profit = grand - totalCost - (roomCount * 500); // 500 estimated labor cost
+
+        document.getElementById('vClient').innerText = name;
+        document.getElementById('vLoc').innerText = loc;
+        document.getElementById('vEmp').innerText = emp;
+        document.getElementById('vTerms').innerText = pTerms;
+        document.getElementById('sSub').innerText = subtotal.toLocaleString();
+        document.getElementById('sInstall').innerText = install.toLocaleString();
+        document.getElementById('sGrand').innerText = grand.toLocaleString() + " EGP";
+        
+        document.getElementById('dashTotal').innerText = grand.toLocaleString() + " EGP";
+        document.getElementById('dashProfit').innerText = profit.toLocaleString() + " EGP";
+
+        return { name, emp, grand, loc };
+    }
+
+    // Admin Security
+    function openAdmin() { document.getElementById('gateOverlay').style.display = 'flex'; }
+    function closeAdmin() { document.getElementById('gateOverlay').style.display = 'none'; }
+    function verifyPin() {
+        if(document.getElementById('pinIn').value === '1122') {
+            closeAdmin();
+            buildAdmin();
+            showTab('admin');
+        } else { alert("ACCESS DENIED"); }
+    }
+
+    function buildAdmin() {
+        const iBox = document.getElementById('adminItems');
+        iBox.innerHTML = '';
+        Object.keys(pPrices).forEach(i => {
+            const act = pActive.includes(i);
+            iBox.innerHTML += `
+                <div class="item-row d-flex justify-content-between align-items-center ${!act ? 'item-disabled' : ''}">
+                    <div class="form-check form-switch"><input class="form-check-input act-tog" type="checkbox" data-item="${i}" ${act ? 'checked' : ''}> <label>${i}</label></div>
+                    <input type="number" class="form-control form-control-sm w-25 price-edit" data-item="${i}" value="${pPrices[i]}">
+                </div>`;
+        });
+
+        const lBox = document.getElementById('adminLocs');
+        lBox.innerHTML = '';
+        Object.keys(pLocs).forEach(l => {
+            lBox.innerHTML += `<div class="input-group mb-2 loc-row"><input type="text" class="form-control form-control-sm l-name" value="${l}"><input type="number" class="form-control form-control-sm l-fee" value="${pLocs[l]}"><button class="btn btn-sm btn-outline-danger" onclick="this.parentElement.remove()">X</button></div>`;
+        });
+        document.getElementById('adminTerms').value = pTerms;
+    }
+
+    function addLocation() {
+        document.getElementById('adminLocs').innerHTML += `<div class="input-group mb-2 loc-row"><input type="text" class="form-control form-control-sm l-name" placeholder="City"><input type="number" class="form-control form-control-sm l-fee" placeholder="Price"><button class="btn btn-sm btn-outline-danger" onclick="this.parentElement.remove()">X</button></div>`;
+    }
+
+    function saveAdmin() {
+        const newAct = [];
+        document.querySelectorAll('.act-tog').forEach(t => { if(t.checked) newAct.push(t.dataset.item); });
+        pActive = newAct;
+        document.querySelectorAll('.price-edit').forEach(p => { pPrices[p.dataset.item] = parseFloat(p.value); });
+        
+        const newL = {};
+        document.querySelectorAll('.loc-row').forEach(row => {
+            const n = row.querySelector('.l-name').value;
+            const f = row.querySelector('.l-fee').value;
+            if(n) newL[n] = parseFloat(f) || 0;
+        });
+        pLocs = newL;
+        pTerms = document.getElementById('adminTerms').value;
+
+        localStorage.setItem('sys_prices', JSON.stringify(pPrices));
+        localStorage.setItem('sys_active', JSON.stringify(pActive));
+        localStorage.setItem('sys_locs', JSON.stringify(pLocs));
+        localStorage.setItem('sys_terms', pTerms);
+        
+        alert("System Master Parameters Updated.");
+        refreshLocs();
+        update();
+        showTab('new');
+    }
+
+    function saveProject() {
+        const data = update();
+        pHist.push({ id: 5000 + pHist.length, date: new Date().toLocaleDateString(), client: data.name, emp: data.emp, total: data.grand, loc: data.loc });
+        localStorage.setItem('sys_hist', JSON.stringify(pHist));
+        alert("Project Saved Successfully!");
+    }
+
+    function showTab(t) {
+        ['new', 'history', 'admin'].forEach(x => document.getElementById('tab-'+x).style.display = 'none');
+        document.getElementById('tab-'+t).style.display = 'block';
+        if(t === 'history') loadHistory();
+    }
+
+    function loadHistory() {
+        const h = document.getElementById('histBody');
+        h.innerHTML = '';
+        pHist.slice().reverse().forEach(x => {
+            h.innerHTML += `<tr><td>#${x.id}</td><td>${x.client}</td><td>${x.emp}</td><td>${x.date}</td><td>${x.total.toLocaleString()}</td><td><span class="status-badge bg-primary text-white">Active</span></td><td><button class="btn btn-sm btn-link text-danger" onclick="delHist(${x.id})">Delete</button></td></tr>`;
+        });
+    }
+
+    function delHist(id) {
+        if(confirm("Permanently remove this project record?")) {
+            pHist = pHist.filter(x => x.id !== id);
+            localStorage.setItem('sys_hist', JSON.stringify(pHist));
+            loadHistory();
+        }
+    }
+
+    init();
+</script>
+</body>
+</html>
